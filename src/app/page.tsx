@@ -1,68 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
-type Todo = {
-  id: number;
-  title: string;
-  completed: boolean;
-};
+import { useState } from "react";
+import { useLocalStorageTodos } from "../hooks/useLocalStorageTodos";
 
 export default function TodoList() {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const { todos, addTodo: addHook, toggleCompleted, deleteTodo, isLoaded } = useLocalStorageTodos();
   const [newTitle, setNewTitle] = useState("");
 
-  // 初回にAPIからtodoを取得
-  useEffect(() => {
-    fetch("/api/todos")
-      .then((res) => res.json())
-      .then((data) => setTodos(data));
-  }, []);
-
-  // 新規todo追加
-  async function addTodo() {
+  const handleAddTodo = () => {
     if (!newTitle.trim()) return;
-
-    const res = await fetch("/api/todos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle }),
-    });
-    const added: Todo = await res.json();
-    setTodos((prev) => [...prev, added]);
+    addHook(newTitle);
     setNewTitle("");
-  }
+  };
 
-  // 完了状態切替
-  async function toggleCompleted(id: number, completed: boolean) {
-    await fetch(`/api/todos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed }),
-    });
-
-    setTodos((prev) =>
-      prev.map((todo) => (todo.id === id ? { ...todo, completed } : todo))
-    );
-  }
-
-  // 削除処理
-  async function deleteTodo(id: number) {
-    const res = await fetch(`/api/todos/${id}`, {
-      method: "DELETE",
-    });
-    if (res.ok) {
-      setTodos((prev) => prev.filter((todo) => todo.id !== id));
-    } else {
-      // エラーハンドリング
-      alert("削除に失敗しました");
-    }
+  if (!isLoaded) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   return (
     <main className="min-h-screen py-12 px-4 sm:px-6">
       <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-extrabold text-center mb-8 bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
           Todo List
         </h1>
 
@@ -74,9 +32,12 @@ export default function TodoList() {
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="何をお手伝いしましょうか？"
               className="flex-grow bg-slate-50 dark:bg-slate-900 border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 rounded-xl p-3 text-sm transition-all"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddTodo();
+              }}
             />
             <button
-              onClick={addTodo}
+              onClick={handleAddTodo}
               className="bg-blue-600 hover:bg-blue-700 text-white px-5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
               disabled={!newTitle.trim()}
             >
@@ -100,8 +61,8 @@ export default function TodoList() {
                 />
                 <span
                   className={`truncate text-sm font-medium transition-all ${todo.completed
-                      ? "text-slate-400 line-through"
-                      : "text-slate-700 dark:text-slate-200"
+                    ? "text-slate-400 line-through"
+                    : "text-slate-700 dark:text-slate-200"
                     }`}
                 >
                   {todo.title}
